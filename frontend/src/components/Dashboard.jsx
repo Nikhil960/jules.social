@@ -11,18 +11,22 @@ import StudioSelector from './StudioSelector';
 // StudioInterface is usually rendered by StudioSelector, so direct import might not be needed here unless used elsewhere.
 
 // Placeholder UI Components that are still needed or specific to Dashboard
-const Button = ({ children, className, variant, onClick }) => <button className={className} onClick={onClick} variant={variant}>{children}</button>;
+// const Button = ({ children, className, variant, onClick }) => <button className={className} onClick={onClick} variant={variant}>{children}</button>;
 // Card, Badge, Tabs etc. will be imported by the individual components from ui/placeholders or ui/actual_components later
 
 // Tabs might still be used directly in Dashboard or defined in ui/placeholders and imported.
 // For this step, assuming ContentCreator brings its own Tabs from placeholders.
-// const Tabs = ({ children, defaultValue, className, onValueChange }) => { ... };
-// const TabsList = ({ children, className }) => { ... };
-// const TabsTrigger = ({ children, value, className, activeTab, handleTabChange }) => { ... };
-// const TabsContent = ({ children, value, activeTab }) => { ... };
 
+import { useWorkspace } from '../contexts/WorkspaceContext'; // Import useWorkspace
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth for checking authentication status
 
 export default function Dashboard() {
+  const { currentWorkspace, isLoading: workspaceIsLoading, error: workspaceError } = useWorkspace();
+  const { isAuthenticated } = useAuth();
+  const [isConnectAccountModalOpen, setIsConnectAccountModalOpen] = useState(false);
+  const [connectedAccountListKey, setConnectedAccountListKey] = useState(0); // Key for refreshing list
+
+  // TODO: Replace this mock data with actual connected accounts from currentWorkspace
   const [connectedPlatforms, setConnectedPlatforms] = useState({
     instagram: true,
     x: false,
@@ -70,31 +74,71 @@ export default function Dashboard() {
             layout
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <div className="mb-10">
-              <h2 className="text-3xl font-black mb-6 text-gray-800">CONNECTED ACCOUNTS</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                {socialPlatforms.map(platform => (
-                  <SocialMediaCard
-                    key={platform.key}
-                    platform={platform.name}
-                    username={connectedPlatforms[platform.key] ? platform.username : "Not Connected"}
-                    icon={platform.icon}
-                    color={platform.color}
-                    isConnected={connectedPlatforms[platform.key]}
-                  />
-                ))}
+            {/* ConnectedAccountList integration */}
+            {isAuthenticated && currentWorkspace && !workspaceIsLoading && (
+              <div className="mb-10">
+                <ConnectedAccountList
+                  key={connectedAccountListKey}
+                  workspaceId={currentWorkspace.id}
+                  onOpenConnectModal={() => setIsConnectAccountModalOpen(true)}
+                />
               </div>
-            </div>
+            )}
+            {/* Messages for workspace loading, error, or selection */}
+            {workspaceIsLoading && <p className="text-center my-4">Loading workspace data...</p>}
+            {workspaceError && <p className="text-red-500 text-center my-4">Error loading workspace: {workspaceError}</p>}
+            {!currentWorkspace && !workspaceIsLoading && isAuthenticated && (
+                <div className="nb-card p-6 border-2 border-black rounded-xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] text-center my-10">
+                    <h3 className="text-xl font-bold text-gray-700 mb-2">Welcome to Postcraft!</h3>
+                    <p className="text-gray-600">Please select a workspace from the header, or create a new one to manage your social accounts and content.</p>
+                </div>
+            )}
 
-            <div className="mb-10">
+            {/* Existing sections: Create Content & Content Studio, conditionally rendered */}
+            {currentWorkspace && (
+              <>
+                <div className="mb-10">
+                  <h2 className="text-3xl font-black mb-6 text-gray-800">CREATE CONTENT</h2>
+                  <ContentCreator initialType="post" />
+                </div>
+
+                <div>
+                  <h2 className="text-3xl font-black mb-6 text-gray-800">CONTENT STUDIO</h2>
+                  <StudioSelector />
+                </div>
+              </>
+            )}
+
+            {/* Footer or additional content can go here */}
+            <footer className="mt-12 text-center text-gray-500 text-sm">
+              Postcraft &copy; {new Date().getFullYear()} - Supercharge your social media.
+            </footer>
+
+          </motion.div>
+        </div>
+      </div>
+      {currentWorkspace && (
+        <ConnectAccountModal
+          isOpen={isConnectAccountModalOpen}
+          onClose={() => setIsConnectAccountModalOpen(false)}
+          workspaceId={currentWorkspace.id}
+          onAccountConnected={() => {
+            setConnectedAccountListKey(prevKey => prevKey + 1); // Increment key to trigger refresh
+          }}
+        />
+      )}
+    </div>
+  );
+}
               <h2 className="text-3xl font-black mb-6 text-gray-800">CREATE CONTENT</h2>
-              {/* ContentCreator now brings its own Tabs structure */}
-              <ContentCreator initialType="post" />
+              {/* ContentCreator will use useWorkspace() hook directly if currentWorkspace is needed */}
+              {currentWorkspace ? <ContentCreator initialType="post" /> : <p>Please select a workspace to create content.</p>}
             </div>
 
             <div>
               <h2 className="text-3xl font-black mb-6 text-gray-800">CONTENT STUDIO</h2>
-              <StudioSelector />
+              {/* StudioSelector will use useWorkspace() hook directly if currentWorkspace is needed */}
+              {currentWorkspace ? <StudioSelector /> : <p>Please select a workspace to use the content studio.</p>}
             </div>
 
             {/* Footer or additional content can go here */}
