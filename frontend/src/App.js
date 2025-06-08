@@ -1,28 +1,23 @@
 import React from 'react';
-import ContentCalendar from './components/ContentCalendar';
-import './App.css'; // For global app styles
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Dashboard from './components/Dashboard';
+import './App.css'; // Assuming this is your main CSS file, or index.css if App.css doesn't exist
 
 function App() {
-  // In a real application, workspaceId would likely come from auth context, URL params, or props
-  const MOCK_WORKSPACE_ID = '123'; // Replace with a dynamic ID or remove if not needed immediately
-
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Social Media Manager</h1>
-      </header>
-      <main className="App-main">
-        <div className="nb-main-content-wrapper">
-          {/* Pass the workspaceId to the ContentCalendar component */}
-          {/* You might want to add a check here to ensure workspaceId is present before rendering */}
-          {MOCK_WORKSPACE_ID ? (
-            <ContentCalendar workspaceId={MOCK_WORKSPACE_ID} />
-          ) : (
-            <p>Please select a workspace to view the calendar.</p>
-          )}
-        </div>
-      </main>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        {/* Define other routes here as needed, e.g.
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/messages" element={<MessagesPage />} />
+        <Route path="/studio/post-editor" element={<PostEditor />} />
+        <Route path="/studio/video-editor" element={<VideoEditor />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        */}
+      </Routes>
+    </Router>
   );
 }
 
