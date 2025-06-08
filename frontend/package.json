@@ -8,8 +8,11 @@
     "@fullcalendar/interaction": "^6.1.10",
     "@fullcalendar/react": "^6.1.10",
     "axios": "^1.6.7",
+    "framer-motion": "^12.16.0",
+    "lucide-react": "^0.513.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^7.6.2",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
@@ -37,5 +40,10 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:8000" 
+  "proxy": "http://localhost:8000",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^4.1.8"
+  }
 }
