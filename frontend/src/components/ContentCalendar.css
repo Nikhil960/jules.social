@@ -1,0 +1,189 @@
+.content-calendar-container {
+    font-family: var(--font-primary);
+    padding: var(--padding-base);
+    background-color: var(--background);
+    border: var(--border-width) solid var(--foreground);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--foreground);
+    border-radius: var(--border-radius); /* Ensure consistency */
+}
+
+/* FullCalendar specific overrides */
+/* Consult FullCalendar docs for the most accurate selectors */
+.fc {
+    font-family: var(--font-primary);
+}
+
+.fc .fc-toolbar-title {
+    font-size: 1.5em; /* Adjust as needed */
+    font-weight: var(--font-weight-black);
+    color: var(--foreground);
+}
+
+.fc .fc-button {
+    background-color: var(--accent-primary);
+    color: var(--foreground);
+    border: var(--border-width) solid var(--foreground);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--foreground);
+    text-transform: uppercase;
+    font-weight: var(--font-weight-bold);
+    padding: calc(var(--padding-base) * 0.5) var(--padding-base);
+}
+
+.fc .fc-button:hover,
+.fc .fc-button:focus {
+    background-color: var(--accent-secondary);
+    color: var(--background);
+    transform: translate(-2px, -2px);
+    box-shadow: calc(var(--shadow-offset) + 2px) calc(var(--shadow-offset) + 2px) 0px var(--foreground);
+}
+
+.fc .fc-daygrid-day-frame {
+    border: var(--border-width) dashed var(--accent-tertiary); /* Example: subtle day cell border */
+    border-radius: var(--border-radius);
+}
+
+.fc .fc-daygrid-day.fc-day-today {
+    background-color: var(--accent-primary) !important; /* Highlight today */
+    opacity: 0.3;
+}
+
+.fc .fc-daygrid-day-number {
+    color: var(--foreground);
+    font-weight: var(--font-weight-bold);
+    padding: calc(var(--spacing-unit) / 2);
+}
+
+.calendar-event-card {
+    padding: var(--spacing-unit);
+    border-radius: var(--border-radius);
+    color: var(--foreground); /* Default text color */
+    font-size: 0.9em;
+    cursor: pointer;
+    margin-bottom: var(--spacing-unit);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    border: var(--border-width) solid var(--foreground);
+    box-shadow: calc(var(--shadow-offset) / 2) calc(var(--shadow-offset) / 2) 0px var(--foreground);
+    /* Background color will be set dynamically based on event type/status */
+}
+
+.event-icon {
+    margin-right: var(--spacing-unit);
+    font-size: 1.1em;
+}
+
+.event-text {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: var(--font-weight-bold);
+}
+
+.event-status-dot {
+    width: calc(var(--spacing-unit) * 1.5);
+    height: calc(var(--spacing-unit) * 1.5);
+    border-radius: var(--border-radius); /* Square dots for Neo-Brutalism */
+    margin-left: var(--spacing-unit);
+    flex-shrink: 0;
+    border: var(--border-width) solid var(--foreground);
+}
+
+/* Modal Styling */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.75); /* Darker overlay */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050; /* Ensure it's above FullCalendar's z-index */
+    padding: var(--padding-base);
+}
+
+.modal-content {
+    background-color: var(--background);
+    padding: calc(var(--padding-base) * 1.5);
+    border-radius: var(--border-radius);
+    border: var(--border-width) solid var(--foreground);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--foreground);
+    width: 90%;
+    max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative; /* For potential close button positioning */
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    margin-bottom: var(--margin-base);
+    font-size: 1.75em;
+    font-weight: var(--font-weight-black);
+    color: var(--foreground);
+    border-bottom: var(--border-width) solid var(--accent-secondary);
+    padding-bottom: var(--padding-base);
+}
+
+.modal-content pre {
+    background-color: var(--foreground);
+    color: var(--background);
+    padding: var(--padding-base);
+    border-radius: var(--border-radius);
+    border: var(--border-width) solid var(--accent-secondary);
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-bottom: var(--margin-base);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--accent-secondary);
+}
+
+.modal-close-button {
+    position: absolute;
+    top: var(--padding-base);
+    right: var(--padding-base);
+    background: var(--error);
+    color: var(--background);
+    border: var(--border-width) solid var(--foreground);
+    border-radius: var(--border-radius);
+    width: calc(var(--padding-base) * 2);
+    height: calc(var(--padding-base) * 2);
+    font-size: 1.2em;
+    font-weight: var(--font-weight-black);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--foreground);
+}
+
+.modal-close-button:hover {
+    background: var(--foreground);
+    color: var(--error);
+}
+
+.loading-indicator,
+.error-message {
+    text-align: center;
+    padding: var(--padding-base);
+    font-size: 1.2em;
+    font-weight: var(--font-weight-bold);
+    border: var(--border-width) solid var(--foreground);
+    border-radius: var(--border-radius);
+    margin-top: var(--margin-base);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--foreground);
+}
+
+.error-message {
+    color: var(--background);
+    background-color: var(--error);
+    border-color: var(--foreground);
+}
+
+.loading-indicator {
+    color: var(--foreground);
+    background-color: var(--accent-primary);
+}

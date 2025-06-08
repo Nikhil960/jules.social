@@ -1,0 +1,39 @@
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+.App-header {
+  background-color: var(--background);
+  padding: var(--padding-base) calc(var(--padding-base) * 2);
+  border-bottom: var(--border-width) solid var(--foreground);
+  box-shadow: 0 var(--shadow-offset) 0px var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* For potential logo/nav */
+}
+
+.App-header h1 {
+  font-size: 1.8em; /* ~28px */
+  color: var(--foreground);
+  margin: 0;
+  font-weight: var(--font-weight-black);
+}
+
+.App-main {
+  flex-grow: 1;
+  padding: calc(var(--padding-base) * 2);
+  width: 100%;
+  max-width: 1200px; /* Adjust as needed */
+  margin: 0 auto; /* Center content */
+}
+
+/* Example of a main content wrapper if needed */
+.nb-main-content-wrapper {
+  padding: var(--padding-base);
+  /* Add border/shadow if this wrapper should look like a card */
+  /* border: var(--border-width) solid var(--foreground); */
+  /* box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--foreground); */
+}

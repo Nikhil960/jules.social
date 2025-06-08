@@ -1,0 +1,221 @@
+:root {
+  /* Palette: High-contrast and intentional */
+  --background: #FDFDFD;
+  --foreground: #111111;
+  --accent-primary: #FFFF00;   /* Yellow for primary actions */
+  --accent-secondary: #FF00FF;  /* Pink for secondary info */
+  --accent-tertiary: #0000FF;  /* Blue for tertiary info */
+  --success: #00FF00;         /* Green for success states */
+  --error: #FF0000;           /* Red for error states */
+
+  /* Structure & Style */
+  --border-width: 2px;
+  --border-radius: 0; /* Strict right angles */
+  --shadow-offset: 4px;
+
+  /* Typography */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  --font-monospace: 'Menlo', 'Monaco', 'Consolas', 'Courier New',
+    monospace;
+  --font-size-base: 16px;
+  --line-height-base: 1.6;
+  --font-weight-normal: 400;
+  --font-weight-bold: 700;
+  --font-weight-black: 900;
+
+  /* Spacing */
+  --spacing-unit: 8px;
+  --padding-base: calc(var(--spacing-unit) * 2); /* 16px */
+  --margin-base: calc(var(--spacing-unit) * 2);  /* 16px */
+}
+
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+body {
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-base);
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--font-weight-black);
+  margin-top: calc(var(--margin-base) * 1.5);
+  margin-bottom: var(--margin-base);
+  line-height: 1.2;
+  color: var(--foreground);
+}
+
+h1 { font-size: 2.5em; } /* ~40px */
+h2 { font-size: 2em; }   /* ~32px */
+h3 { font-size: 1.75em; }/* ~28px */
+h4 { font-size: 1.5em; } /* ~24px */
+h5 { font-size: 1.25em; }/* ~20px */
+h6 { font-size: 1em; }   /* ~16px */
+
+/* Paragraphs */
+p {
+  margin-bottom: var(--margin-base);
+}
+
+/* Links */
+a {
+  color: var(--accent-tertiary);
+  text-decoration: underline;
+  font-weight: var(--font-weight-bold);
+}
+
+a:hover,
+a:focus {
+  color: var(--accent-secondary);
+  outline: var(--border-width) solid var(--accent-secondary);
+  outline-offset: 2px;
+}
+
+/* Buttons */
+.nb-button {
+  display: inline-block;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-base);
+  padding: var(--padding-base) calc(var(--padding-base) * 1.5);
+  border: var(--border-width) solid var(--foreground);
+  border-radius: var(--border-radius);
+  background-color: var(--accent-primary);
+  color: var(--foreground); /* High contrast with yellow */
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--foreground);
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+}
+
+.nb-button:hover,
+.nb-button:focus {
+  background-color: var(--accent-secondary);
+  color: var(--background);
+  transform: translate(-2px, -2px);
+  box-shadow: calc(var(--shadow-offset) + 2px) calc(var(--shadow-offset) + 2px) 0px var(--foreground);
+  outline: none; /* Remove default focus outline as we have hover/focus styles */
+}
+
+.nb-button:active {
+  transform: translate(0px, 0px);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--foreground);
+}
+
+.nb-button--secondary {
+  background-color: var(--accent-secondary);
+  color: var(--background);
+}
+
+.nb-button--secondary:hover,
+.nb-button--secondary:focus {
+  background-color: var(--accent-tertiary);
+  color: var(--background);
+}
+
+.nb-button--success {
+  background-color: var(--success);
+  color: var(--foreground);
+}
+
+.nb-button--error {
+  background-color: var(--error);
+  color: var(--background);
+}
+
+/* Form Inputs */
+.nb-input,
+.nb-textarea {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-base);
+  padding: var(--padding-base);
+  border: var(--border-width) solid var(--foreground);
+  border-radius: var(--border-radius);
+  background-color: var(--background);
+  color: var(--foreground);
+  display: block;
+  width: 100%;
+  margin-bottom: var(--margin-base);
+  box-shadow: inset 2px 2px 0px rgba(0,0,0,0.05); /* Subtle inner shadow */
+}
+
+.nb-input:focus,
+.nb-textarea:focus {
+  outline: var(--border-width) solid var(--accent-primary);
+  box-shadow: 0 0 0 var(--border-width) var(--accent-primary), inset 2px 2px 0px rgba(0,0,0,0.05);
+}
+
+.nb-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* Code Blocks */
+code,
+pre {
+  font-family: var(--font-monospace);
+  background-color: var(--foreground);
+  color: var(--background);
+  padding: 0.2em 0.4em;
+  border-radius: var(--border-radius);
+  border: var(--border-width) solid var(--accent-secondary);
+}
+
+pre {
+  padding: var(--padding-base);
+  overflow-x: auto;
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--accent-secondary);
+}
+
+/* Basic Card Style */
+.nb-card {
+  background-color: var(--background);
+  border: var(--border-width) solid var(--foreground);
+  border-radius: var(--border-radius);
+  padding: var(--padding-base);
+  margin-bottom: var(--margin-base);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--foreground);
+}
+
+/* Utility Classes */
+.nb-text-center { text-align: center; }
+.nb-mb-0 { margin-bottom: 0 !important; }
+.nb-mt-0 { margin-top: 0 !important; }
+.nb-p-0 { padding: 0 !important; }
+
+.nb-d-block { display: block !important; }
+.nb-d-flex { display: flex !important; }
+.nb-flex-column { flex-direction: column !important; }
+.nb-justify-center { justify-content: center !important; }
+.nb-align-center { align-items: center !important; }
+
+.nb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

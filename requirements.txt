@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlalchemy
+alembic
+python-dotenv
+passlib[bcrypt]
+python-jose[cryptography]
+requests
+celery
+redis
+google-generativeai
+pydantic-settings
+pydantic[email]
