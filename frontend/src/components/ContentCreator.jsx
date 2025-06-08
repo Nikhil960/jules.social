@@ -30,13 +30,25 @@ import {
   Youtube,
   Settings,
   FileText,
-  VideoIcon, // Renamed from Video to avoid conflict with HTML video tag
+  VideoIcon,
   PlusCircle
 } from 'lucide-react';
 import XLogo from './XLogo';
+import { useAuth } from '../contexts/AuthContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
+import apiClient from '../services/api';
+import toast from '../utils/toastNotifications'; // Import custom toast
 
 const ContentCreator = ({ initialType = "post" }) => {
+  const { token } = useAuth();
+  const { currentWorkspace } = useWorkspace();
+
   const [selectedPlatforms, setSelectedPlatforms] = useState({
+    // TODO: This should be dynamically populated based on currentWorkspace.connected_accounts
+    // And the keys should ideally be platform IDs or a consistent identifier.
+    // For now, we'll keep the structure but acknowledge it needs linking to actual accounts.
+    // Example: if currentWorkspace has an Instagram account with ID 5, this might be:
+    // '5': true, // where '5' is the connected_account_id
     instagram: true,
     x: false,
     linkedin: false,
@@ -47,30 +59,110 @@ const ContentCreator = ({ initialType = "post" }) => {
   const [contentType, setContentType] = useState(initialType); // 'post', 'story', 'video'
   const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
   const [scheduledTime, setScheduledTime] = useState("");
+  const [apiStatus, setApiStatus] = useState({ loading: false, error: null, success: null });
 
-  const togglePlatform = (platform) => {
+
+  // TODO: This should be derived from currentWorkspace.connected_accounts
+  const availablePlatformsForSelection = [
+    { id: 'instagram', name: 'Instagram', icon: <Instagram className="h-5 w-5" />, connected_account_id_temp: 1 }, // Replace with actual ID
+    { id: 'x', name: 'X (Twitter)', icon: <XLogo className="h-5 w-5" />, connected_account_id_temp: 2 },
+    { id: 'linkedin', name: 'LinkedIn', icon: <Linkedin className="h-5 w-5" />, connected_account_id_temp: 3 },
+    // { id: 'youtube', name: 'YouTube', icon: <Youtube className="h-5 w-5" /> }, // YouTube might have different content types
+  ];
+  // Initialize selectedPlatforms based on available ones (all false initially)
+  useEffect(() => {
+    const initialSelection = {};
+    availablePlatformsForSelection.forEach(p => initialSelection[p.id] = false);
+    setSelectedPlatforms(initialSelection);
+  }, [currentWorkspace]); // Reset/re-init if workspace changes
+
+
+  const togglePlatform = (platformId) => {
     setSelectedPlatforms((prev) => ({
       ...prev,
-      [platform]: !prev[platform],
+      [platformId]: !prev[platformId],
     }));
   };
 
-  const platformIcons = {
-    instagram: <Instagram className="h-5 w-5" />,
-    x: <XLogo className="h-5 w-5" />,
-    linkedin: <Linkedin className="h-5 w-5" />,
-    youtube: <Youtube className="h-5 w-5" />,
-  };
-
-  const getPlatformButtonStyle = (platformKey) => {
-    return selectedPlatforms[platformKey]
+  const getPlatformButtonStyle = (platformId) => {
+    return selectedPlatforms[platformId]
       ? 'bg-black text-white border-black'
       : 'bg-white text-black border-gray-300 hover:border-black';
   };
 
-  const handleSchedule = () => {
-    console.log(`Content for ${contentType} scheduled for ${scheduledTime} on platforms:`, selectedPlatforms, "Content:", content);
-    // Add actual scheduling logic here
+  const handleSchedule = async () => {
+    if (!currentWorkspace) {
+      setApiStatus({ loading: false, error: "No workspace selected.", success: null });
+      return;
+    }
+    if (!token) {
+      setApiStatus({ loading: false, error: "Authentication token not found.", success: null });
+      return;
+    }
+
+    const connectedAccountIds = Object.entries(selectedPlatforms)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([platformId, _]) => {
+        // This needs to map platformId (e.g., 'instagram') to actual connected_account.id
+        // This is a placeholder until connected_accounts are properly loaded into state.
+        const platform = availablePlatformsForSelection.find(p => p.id === platformId);
+        return platform?.connected_account_id_temp; // Use a temporary or placeholder ID
+      })
+      .filter(id => id !== undefined); // Filter out undefined if mapping fails
+
+    if (connectedAccountIds.length === 0) {
+      setApiStatus({ loading: false, error: "Please select at least one platform to publish to.", success: null });
+      return;
+    }
+
+    setApiStatus({ loading: true, error: null, success: null }); // Keep for local loading state if needed, or remove if toast.promise handles all
+
+    const postDataPayload = {
+      content_text: content,
+      // media_url: "http://example.com/image.jpg", // TODO: Implement media upload
+      status: scheduledTime ? "scheduled" : "draft",
+      scheduled_at: scheduledTime ? new Date(scheduledTime).toISOString() : null,
+    };
+
+    const requestBodyPayload = {
+      post_data: postDataPayload,
+      connected_account_ids: connectedAccountIds,
+    };
+
+    const promise = apiClient.post(
+      `/workspaces/${currentWorkspace.id}/posts`,
+      requestBodyPayload
+    );
+
+    toast.promise(
+      promise,
+      {
+        pending: 'Scheduling post...',
+        success: 'Post scheduled successfully!',
+        error: {
+          render({data}){
+            // data will be the error thrown by apiClient
+            return data.response?.data?.detail || data.message || 'Failed to schedule post.';
+          }
+        }
+      }
+    ).then(() => {
+      // On success (toast.promise resolves)
+      setApiStatus({ loading: false, error: null, success: "Post created/scheduled successfully!"}); // Update local status
+      setContent("");
+      setScheduledTime("");
+      const initialSelection = {};
+      availablePlatformsForSelection.forEach(p => initialSelection[p.id] = false);
+      setSelectedPlatforms(initialSelection);
+      // TODO: Trigger calendar refresh here
+      // Example: workspaceContext.refreshCalendarPosts(); or similar
+    }).catch((error) => {
+      // On error (toast.promise rejects)
+      // Error is already displayed by toast.promise
+      setApiStatus({ loading: false, error: error.response?.data?.detail || "Failed to create post.", success: null });
+    }).finally(() => {
+       setApiStatus(prev => ({ ...prev, loading: false })); // Ensure loading is false
+    });
   };
 
   const renderMediaUpload = () => {
@@ -108,7 +200,10 @@ const ContentCreator = ({ initialType = "post" }) => {
             setContent={setContent}
             selectedPlatforms={selectedPlatforms}
             togglePlatform={togglePlatform}
-            platformIcons={platformIcons}
+            // platformIcons no longer needed directly in ContentArea if availablePlatformsForSelection is used
+            availablePlatformsForSelection={availablePlatformsForSelection}
+            availablePlatformsForSelection={availablePlatformsForSelection}
+            availablePlatformsForSelection={availablePlatformsForSelection}
             getPlatformButtonStyle={getPlatformButtonStyle}
             aiAssistance={aiAssistance}
             setAiAssistance={setAiAssistance}
@@ -166,10 +261,17 @@ const ContentCreator = ({ initialType = "post" }) => {
                 )}
             </Collapsible>
 
-            <Button onClick={handleSchedule} className="w-full bg-green-500 text-white font-bold py-3 rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)] hover:bg-green-600 transition-colors flex items-center justify-center gap-2">
+            <Button
+              onClick={handleSchedule}
+              className="w-full bg-green-500 text-white font-bold py-3 rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)] hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+              disabled={apiStatus.loading} // Disable button while loading
+            >
                 <Send className="h-5 w-5" />
-                {scheduledTime ? `Schedule ${contentType}` : `Publish ${contentType} Now`}
+                {apiStatus.loading ? "Processing..." : (scheduledTime ? `Schedule ${contentType}` : `Publish ${contentType} Now`)}
             </Button>
+            {/* Local error/success messages can be removed if toasts are sufficient */}
+            {/* {apiStatus.error && <p className="text-sm text-red-600 mt-2">{apiStatus.error}</p>} */}
+            {/* {apiStatus.success && <p className="text-sm text-green-600 mt-2">{apiStatus.success}</p>} */}
         </div>
       </Tabs>
     </Card>
@@ -177,11 +279,12 @@ const ContentCreator = ({ initialType = "post" }) => {
 };
 
 
-const ContentArea = ({ type, content, setContent, selectedPlatforms, togglePlatform, platformIcons, getPlatformButtonStyle, aiAssistance, setAiAssistance, renderMediaUpload }) => {
+const ContentArea = ({ type, content, setContent, selectedPlatforms, togglePlatform, availablePlatformsForSelection, getPlatformButtonStyle, aiAssistance, setAiAssistance, renderMediaUpload }) => {
   return (
     <div className="space-y-6">
       <div>
         <Label htmlFor={`content-${type}`} className="text-lg">Your {type} content:</Label>
+        {/* TODO: Add a check here if currentWorkspace is null, and disable textarea or show a message */}
         <Textarea
           id={`content-${type}`}
           value={content}
@@ -196,14 +299,16 @@ const ContentArea = ({ type, content, setContent, selectedPlatforms, togglePlatf
       <div className="space-y-3">
         <Label className="text-lg">Publish to:</Label>
         <div className="flex flex-wrap gap-3">
-          {Object.entries(platformIcons).map(([key, icon]) => (
+          {/* TODO: This should list Connected Accounts from the currentWorkspace */}
+          {/* For now, using placeholder `availablePlatformsForSelection` */}
+          {availablePlatformsForSelection.map((platform) => (
             <Button
-              key={key}
-              onClick={() => togglePlatform(key)}
-              variant={selectedPlatforms[key] ? 'solid' : 'outline'}
-              className={`px-4 py-2.5 rounded-lg border-2 font-semibold text-sm transition-all duration-150 flex items-center gap-2 shadow-sm hover:shadow-md ${getPlatformButtonStyle(key)}`}
+              key={platform.id}
+              onClick={() => togglePlatform(platform.id)}
+              // variant={selectedPlatforms[platform.id] ? 'solid' : 'outline'} // Placeholder doesn't have variant prop behavior
+              className={`px-4 py-2.5 rounded-lg border-2 font-semibold text-sm transition-all duration-150 flex items-center gap-2 shadow-sm hover:shadow-md ${getPlatformButtonStyle(platform.id)}`}
             >
-              {icon} {key.charAt(0).toUpperCase() + key.slice(1)}
+              {platform.icon} {platform.name}
             </Button>
           ))}
         </div>

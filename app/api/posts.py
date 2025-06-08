@@ -4,9 +4,10 @@ from typing import List, Optional
 from datetime import datetime
 
 from .. import crud, models, schemas
+from ..crud import crud_workspace # Import crud_workspace
 from ..database import get_db
 from ..core.celery_app import publish_post_task
-# from ..dependencies import get_current_active_user # To be created for auth
+from ..dependencies import get_current_active_user
 
 router = APIRouter(
     prefix="/posts",
@@ -20,10 +21,13 @@ router = APIRouter(
 # This will be in a workspace-specific router or handled differently if we want to keep /posts clean
 
 @router.get("/{post_id}", response_model=schemas.Post)
-def read_post(post_id: int, db: Session = Depends(get_db)):
+def read_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
     db_post = crud.crud_post.get_post(db, post_id=post_id)
     if db_post is None:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+    if not crud_workspace.is_user_member_of_workspace(db, user_id=current_user.id, workspace_id=db_post.workspace_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this post")
     return db_post
 
 @router.put("/{post_id}", response_model=schemas.Post)
@@ -31,15 +35,17 @@ def update_existing_post(
     post_id: int, 
     post_in: schemas.PostUpdate, 
     db: Session = Depends(get_db),
-    # current_user: models.User = Depends(get_current_active_user) # For auth
+    current_user: models.User = Depends(get_current_active_user)
 ):
     db_post = crud.crud_post.get_post(db, post_id=post_id)
     if not db_post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    # Add authorization: check if current_user has permission to update this post (e.g., owns workspace)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+    if not crud_workspace.is_user_member_of_workspace(db, user_id=current_user.id, workspace_id=db_post.workspace_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this post")
     
     # If scheduling, trigger Celery task
-    if post_in.scheduled_at and post_in.status == models.PostStatus.SCHEDULED:
+    if post_in.scheduled_at and post_in.status == models.PostStatus.SCHEDULED.value:
         # existing_schedule = db_post.scheduled_at
         # if existing_schedule != post_in.scheduled_at or db_post.status != models.PostStatus.SCHEDULED:
             # Potentially cancel old Celery task if schedule changed, then create new one
@@ -58,15 +64,18 @@ def update_existing_post(
 def delete_existing_post(
     post_id: int, 
     db: Session = Depends(get_db),
-    # current_user: models.User = Depends(get_current_active_user) # For auth
+    current_user: models.User = Depends(get_current_active_user)
 ):
     db_post = crud.crud_post.get_post(db, post_id=post_id)
     if not db_post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    # Add authorization: check if current_user has permission to delete this post
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+    if not crud_workspace.is_user_member_of_workspace(db, user_id=current_user.id, workspace_id=db_post.workspace_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this post")
+
     # Add logic: only delete if status is 'draft' or 'scheduled'
-    if db_post.status in [models.PostStatus.POSTED, models.PostStatus.ERROR]:
-        raise HTTPException(status_code=400, detail=f"Cannot delete post with status '{db_post.status.value}'")
+    if db_post.status in [models.PostStatus.POSTED.value, models.PostStatus.ERROR.value]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot delete post with status '{db_post.status}'")
 
     # If it was a scheduled post, cancel the Celery task
     # if db_post.status == models.PostStatus.SCHEDULED and db_post.scheduled_at:
@@ -89,37 +98,36 @@ workspace_router = APIRouter(
 @workspace_router.post("/", response_model=List[schemas.Post], status_code=status.HTTP_201_CREATED)
 def create_new_posts_for_workspace(
     workspace_id: int,
-    post_request: schemas.PostCreateRequest,
+    post_request: schemas.PostCreateRequest, # This was PostCreate in previous context, changed to PostCreateRequest
     db: Session = Depends(get_db),
-    # current_user: models.User = Depends(get_current_active_user) # For auth
+    current_user: models.User = Depends(get_current_active_user)
 ):
-    # Authorization: Check if current_user has access to this workspace_id
-    # db_workspace = crud.crud_workspace.get_workspace(db, workspace_id=workspace_id) # Assuming crud_workspace exists
-    # if not db_workspace or not current_user_in_workspace(current_user, db_workspace):
-    #     raise HTTPException(status_code=403, detail="Not authorized to create posts in this workspace")
+    if not crud_workspace.is_user_member_of_workspace(db, user_id=current_user.id, workspace_id=workspace_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create posts in this workspace")
 
     created_posts = []
     for acc_id in post_request.connected_account_ids:
-        # Verify connected_account_id belongs to the workspace_id
-        # db_connected_account = crud.crud_connected_account.get(db, id=acc_id) # Assuming this exists
+        # Verify connected_account_id belongs to the workspace_id (assuming this check is done in crud_connected_account or similar)
+        # db_connected_account = crud.crud_connected_account.get(db, id=acc_id)
         # if not db_connected_account or db_connected_account.workspace_id != workspace_id:
-        #     raise HTTPException(status_code=400, detail=f"Connected account {acc_id} not found in workspace {workspace_id}")
+        #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Connected account {acc_id} not found in workspace {workspace_id}")
 
-        post_data = schemas.PostCreateData(
-            workspace_id=workspace_id, # Use path parameter
+        post_create_data = schemas.PostCreateData( # Ensure this schema is correctly named and used
+            workspace_id=workspace_id,
             connected_account_id=acc_id,
-            content_text=post_request.content_text,
-            media_url=post_request.media_url,
-            scheduled_at=post_request.scheduled_at,
-            status=models.PostStatus.SCHEDULED if post_request.scheduled_at else models.PostStatus.DRAFT,
-            author_id=None # current_user.id if current_user else None # Set author from logged-in user
+            content_text=post_request.post_data.content_text, # Accessing nested post_data
+            media_url=post_request.post_data.media_url, # Accessing nested post_data
+            scheduled_at=post_request.post_data.scheduled_at, # Accessing nested post_data
+            status=models.PostStatus.SCHEDULED.value if post_request.post_data.scheduled_at else models.PostStatus.DRAFT.value,
+            # author_id field is not in PostCreateData, it's passed to crud_post.create_post directly
         )
-        db_post = crud.crud_post.create_post(db=db, post=post_data, author_id=post_data.author_id)
+
+        db_post = crud.crud_post.create_post(db=db, post_create_data=post_create_data, author_id=current_user.id) # Pass author_id
         
         # If scheduled, trigger Celery task
-        if db_post.status == models.PostStatus.SCHEDULED and db_post.scheduled_at:
+        if db_post.status == models.PostStatus.SCHEDULED.value and db_post.scheduled_at:
             publish_post_task.apply_async(args=[db_post.id], eta=db_post.scheduled_at)
-            print(f"Scheduling post {db_post.id} for {db_post.scheduled_at}") # Placeholder
+            print(f"Scheduling post {db_post.id} for {db_post.scheduled_at}")
         created_posts.append(db_post)
     return created_posts
 
@@ -131,9 +139,11 @@ def read_posts_for_workspace(
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(get_db),
-    # current_user: models.User = Depends(get_current_active_user) # For auth
+    current_user: models.User = Depends(get_current_active_user)
 ):
-    # Authorization: Check if current_user has access to this workspace_id
+    if not crud_workspace.is_user_member_of_workspace(db, user_id=current_user.id, workspace_id=workspace_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view posts in this workspace")
+
     posts = crud.crud_post.get_posts_by_workspace(
         db, workspace_id=workspace_id, skip=skip, limit=limit, start_date=start_date, end_date=end_date
     )

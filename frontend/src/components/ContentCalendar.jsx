@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import interactionPlugin from '@fullcalendar/interaction'; // for drag and drop and dateClick
-import axios from 'axios';
-import './ContentCalendar.css'; // For custom styling
-
-// Mock API base URL - replace with your actual API URL
-const API_BASE_URL = '/api/v1'; // Assuming your FastAPI runs on the same domain or proxied
+import interactionPlugin from '@fullcalendar/interaction';
+import apiClient from '../services/api';
+import toast from '../utils/toastNotifications'; // Import toast
+import './ContentCalendar.css';
 
 // Helper to get platform icon (simplified)
 const getPlatformIcon = (platformName) => {
@@ -29,7 +27,13 @@ const getStatusColor = (status) => {
     }
 };
 
-const ContentCalendar = ({ workspaceId }) => {
+import { useWorkspace } from '../contexts/WorkspaceContext'; // Import useWorkspace
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth for token
+
+const ContentCalendar = () => { // Removed workspaceId prop
+    const { currentWorkspace } = useWorkspace(); // Get currentWorkspace
+    const { token } = useAuth(); // Get token for API calls
+
     const [events, setEvents] = useState([]);
     const [selectedPost, setSelectedPost] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -37,56 +41,63 @@ const ContentCalendar = ({ workspaceId }) => {
     const calendarRef = useRef(null);
 
     const fetchPosts = async (startDate, endDate) => {
-        if (!workspaceId) return;
+        if (!currentWorkspace || !token) { // Check for currentWorkspace and token
+            setEvents([]); // Clear events if no workspace or token
+            if (!currentWorkspace) setError("No workspace selected. Please select a workspace.");
+            else setError(null); // Clear error if only token is missing (auth will handle)
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         setError(null);
         try {
-            // Adjust date format if your API expects something different
-            const response = await axios.get(`${API_BASE_URL}/workspaces/${workspaceId}/posts`, {
+            const response = await apiClient.get(`/workspaces/${currentWorkspace.id}/posts`, {
                 params: {
                     start_date: startDate.toISOString(),
                     end_date: endDate.toISOString(),
-                    limit: 500 // Fetch more posts if needed
+                    limit: 500
                 }
             });
             const formattedEvents = response.data.map(post => ({
-                id: post.id.toString(), // FullCalendar needs string IDs
+                id: post.id.toString(),
                 title: `${getPlatformIcon(post.connected_account?.platform?.name)} ${post.content_text?.substring(0, 20) || 'No Content'}...`,
-                start: post.scheduled_at, // Assumes scheduled_at is in a format FullCalendar understands (ISO8601)
-                allDay: false, // Or true if you treat them as all-day events
-                extendedProps: {
-                    ...post,
-                    platformName: post.connected_account?.platform?.name,
-                    statusColor: getStatusColor(post.status)
-                },
+                start: post.scheduled_at,
+                allDay: false,
+                extendedProps: { ...post, platformName: post.connected_account?.platform?.name, statusColor: getStatusColor(post.status) },
                 backgroundColor: getStatusColor(post.status),
                 borderColor: getStatusColor(post.status)
             }));
             setEvents(formattedEvents);
         } catch (err) {
             console.error('Error fetching posts:', err);
-            setError('Failed to load posts. Please try again.');
-            setEvents([]); // Clear events on error
+            const errorMessage = err.response?.data?.detail || 'Failed to load posts. Please try again.';
+            setError(errorMessage); // Set local error state
+            toast.error(errorMessage); // Show toast notification
+            setEvents([]);
         }
         setIsLoading(false);
     };
 
     useEffect(() => {
         // Fetch posts for the initial view
-        if (calendarRef.current) {
+        if (currentWorkspace && calendarRef.current) { // Check if currentWorkspace is available
             const calendarApi = calendarRef.current.getApi();
             const view = calendarApi.view;
             if (view.activeStart && view.activeEnd) {
-                 // Add a day to activeEnd because FullCalendar's activeEnd is exclusive
                 const endDate = new Date(view.activeEnd);
-                endDate.setDate(endDate.getDate()); 
+                // endDate.setDate(endDate.getDate()); // FullCalendar's activeEnd is usually exclusive, but API might be inclusive
                 fetchPosts(view.activeStart, endDate);
             }
+        } else if (!currentWorkspace) {
+            setEvents([]); // Clear events if no workspace is selected
+            setError("No workspace selected. Please select a workspace from the header.");
         }
-    }, [workspaceId]); // Re-fetch if workspaceId changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentWorkspace, token]); // Re-fetch if currentWorkspace or token changes
 
     const handleDatesSet = (dateInfo) => {
         // Called when the view's date range changes (e.g., navigating months)
+        if (!currentWorkspace) return; // Don't fetch if no workspace
         const { start, end } = dateInfo;
         // Add a day to end because FullCalendar's activeEnd is exclusive for fetching
         const fetchEndDate = new Date(end);
@@ -103,34 +114,45 @@ const ContentCalendar = ({ workspaceId }) => {
         const postId = event.id;
         const newScheduledAt = event.start.toISOString();
 
-        // Optimistic update (optional, for better UX)
-        // setEvents(prevEvents => prevEvents.map(e => e.id === postId ? { ...e, start: newScheduledAt } : e));
-
-        try {
-            await axios.put(`${API_BASE_URL}/posts/${postId}`, {
-                scheduled_at: newScheduledAt,
-                // Potentially update status to 'scheduled' if it wasn't
-                status: 'scheduled' 
-            });
-            // Refetch or update event more accurately
-            // For now, just log success and rely on next full fetch or manual refresh
-            console.log(`Post ${postId} updated to ${newScheduledAt}`);
-            // Refresh the specific event or all events
-            const calendarApi = calendarRef.current.getApi();
-            const view = calendarApi.view;
-            const fetchEndDate = new Date(view.activeEnd);
-            fetchEndDate.setDate(fetchEndDate.getDate());
-            fetchPosts(view.activeStart, fetchEndDate); // Refetch to get updated status/color
-
-        } catch (err) {
-            console.error('Error updating post schedule:', err);
-            setError('Failed to update post schedule.');
-            // Revert optimistic update if you implemented it
-            // dropInfo.revert(); // FullCalendar's built-in revert
-            // Or manually revert state
-            // setEvents(prevEvents => prevEvents.map(e => e.id === postId ? { ...e, start: oldEvent.start } : e));
-            alert('Failed to update schedule. Please try again.');
+        if (!currentWorkspace || !token) { // Guard against missing workspace/token
+            alert('Action cannot be performed: No workspace selected or not authenticated.');
+            dropInfo.revert();
+            return;
         }
+
+        // Optimistic update (optional, for better UX)
+        // setEvents(prevEvents => prevEvents.map(e => e.id === postId ? { ...e, start: newScheduledAt } : e)); // Optimistic update
+
+        const promise = apiClient.put(`/posts/${postId}`, {
+            scheduled_at: newScheduledAt,
+            status: 'scheduled'
+        });
+
+        toast.promise(
+            promise,
+            {
+                pending: 'Rescheduling post...',
+                success: 'Post rescheduled successfully!',
+                error: {
+                    render({data}){
+                        dropInfo.revert(); // Revert calendar event position on error
+                        return data.response?.data?.detail || data.message || 'Failed to update schedule.';
+                    }
+                }
+            }
+        ).then(() => {
+            // On success, refetch posts to update colors/status accurately
+            if (calendarRef.current) {
+                const calendarApi = calendarRef.current.getApi();
+                const view = calendarApi.view;
+                const fetchEndDate = new Date(view.activeEnd);
+                // fetchEndDate.setDate(fetchEndDate.getDate()); // Already handled in fetchPosts if needed
+                fetchPosts(view.activeStart, fetchEndDate);
+            }
+        }).catch(() => {
+            // Error already handled by toast.promise, and dropInfo.revert() called
+            // setError('Failed to update post schedule.'); // Update local state if needed
+        });
     };
 
     const renderEventContent = (eventInfo) => {
@@ -152,10 +174,12 @@ const ContentCalendar = ({ workspaceId }) => {
 
     return (
         <div className="content-calendar-container nb-card">
+            {!currentWorkspace && !isLoading && <div className="info-message">Please select a workspace to view the calendar.</div>}
             {isLoading && <div className="loading-indicator">Loading posts...</div>}
             {error && <div className="error-message">{error}</div>}
-            <FullCalendar
-                ref={calendarRef}
+            {currentWorkspace && ( // Only render FullCalendar if a workspace is selected
+                <FullCalendar
+                    ref={calendarRef}
                 plugins={[dayGridPlugin, interactionPlugin]}
                 initialView="dayGridMonth"
                 headerToolbar={{
@@ -171,11 +195,12 @@ const ContentCalendar = ({ workspaceId }) => {
                 datesSet={handleDatesSet} // Called when navigating months or changing view
                 eventContent={renderEventContent} // Custom rendering for event cards
                 height="auto" // Adjust as needed, or use aspectRatio
-                // Force re-render when workspaceId changes, to trigger initial fetch via useEffect
-                key={workspaceId} 
-            />
+                // Force re-render when currentWorkspace changes, to trigger initial fetch via useEffect
+                key={currentWorkspace.id}
+                />
+            )}
 
-            {selectedPost && (
+            {selectedPost && currentWorkspace && ( // Also ensure currentWorkspace exists for modal context
                 <div className="modal-overlay" onClick={closeModal}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <button className="modal-close-button" onClick={closeModal} aria-label="Close modal">&times;</button>
