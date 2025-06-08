@@ -1,0 +1,4 @@
+fastapi>=0.100.0 # A recent version of FastAPI
+uvicorn[standard]>=0.20.0 # Uvicorn with standard dependencies (like websockets, httptools)
+pydantic>=1.10.0,<2.0.0 # Specify Pydantic V1 for orm_mode, or use Pydantic V2 and update models
+python-multipart>=0.0.5 # For form data parsing (OAuth2PasswordRequestForm)
